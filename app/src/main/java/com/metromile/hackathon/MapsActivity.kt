@@ -111,6 +111,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun showNearbyPlaces(googleMap: GoogleMap, response: List<ParkingResponse>) {
+        response.filter {
+            it.purchase_options.any { it.amenities.contains(Amenity("Covered", true)) }
+        }
         response.forEach {
             googleMap.addMarker(MarkerOptions()
                     .position(it._embedded.parkingLocation.entrances[0].latLng())
@@ -129,7 +132,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 }
 
-data class ParkingResponse(val _embedded: EmbeddedParkingData) {
+data class ParkingResponse(val _embedded: EmbeddedParkingData,
+                           val purchase_options: List<ParkingPurchaseOptions>) {
     class Deserializer : ResponseDeserializable<List<ParkingResponse>> {
         override fun deserialize(content: String): List<ParkingResponse> {
             return Gson().fromJson(content, object: TypeToken<List<ParkingResponse>>(){}.type)
@@ -137,6 +141,9 @@ data class ParkingResponse(val _embedded: EmbeddedParkingData) {
     }
 }
 
+data class ParkingPurchaseOptions(val amenities: List<Amenity>)
+
+data class Amenity(val name: String, val enabled: Boolean)
 data class EmbeddedParkingData(@SerializedName("pw:location") val parkingLocation: ParkingLocation,
                                val photos: List<ParkingPhoto>)
 data class ParkingPhoto(val sizes: Map<String, PhotoDetail>)
