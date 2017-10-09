@@ -2,7 +2,8 @@ package com.metromile.hackathon
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Intent
+import android.databinding.DataBindingUtil
+import android.databinding.ObservableField
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
@@ -13,16 +14,17 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.places.Places
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.MapView
 import com.google.android.gms.maps.OnMapReadyCallback
-import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.gson.Gson
-import com.tbruyelle.rxpermissions2.RxPermissions
-import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
+import com.tbruyelle.rxpermissions2.RxPermissions
+import me.tatarka.bindingcollectionadapter2.ItemBinding
 import net.danlew.android.joda.JodaTimeAndroid
 import org.joda.time.DateTime
 
@@ -30,23 +32,52 @@ import org.joda.time.DateTime
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private var mGoogleApiClient: GoogleApiClient? = null
     private val TAG = "MapsActivity"
+    lateinit var mapView : MapView
+    val parking = ObservableField<ParkingViewModel>()
+    val photoItemBinding = ItemBinding.of<String>(BR.imageUrl, R.layout.recycler_image_view)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_maps)
+        val binding = DataBindingUtil.setContentView<MapsActivityBinding>(this, R.layout.activity_maps)
+        binding.activity = this
 
         JodaTimeAndroid.init(this)
 
-        val mapFragment = supportFragmentManager
-                .findFragmentById(R.id.map) as SupportMapFragment
-        mapFragment.getMapAsync(this)
 
+        mapView = findViewById<MapView>(R.id.map)
+        mapView.onCreate(savedInstanceState)
+        mapView.getMapAsync(this)
 
         mGoogleApiClient = GoogleApiClient.Builder(this)
                 .addApi(Places.GEO_DATA_API)
                 .enableAutoManage(this, { Log.d(TAG, "Connection result: $it") })
                 .build()
 
+    }
+
+    override fun onResume() {
+        super.onResume()
+        mapView.onResume()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        mapView.onPause()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        mapView.onStart()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        mapView.onStop()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mapView.onDestroy()
     }
 
     /**
@@ -83,7 +114,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                                     animateCamera(CameraUpdateFactory.newCameraPosition(
                                             CameraPosition.Builder()
                                                     .target(it)      // Sets the center of the map to Mountain View
-                                                    .zoom(17f)                   // Sets the zoom
+                                                    .zoom(15f)                   // Sets the zoom
                                                     .bearing(90f)                // Sets the orientation of the camera to east
                                                     .tilt(15f)                   // Sets the tilt of the camera to 30 degrees
                                                     .build()
@@ -122,13 +153,17 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         googleMap.setOnMarkerClickListener {
-            val parkingReponse = it.tag as ParkingResponse
+            val parkingResponse = it.tag as ParkingResponse
+
+            parking.set(
+                    ParkingViewModel(
+                            parkingResponse._embedded.parkingLocation.name,
+                            parkingResponse._embedded.parkingLocation.photos
+                                    .map { it.sizes["original"] }
+                                    .filterNotNull()
+                                    .map { it.url }))
             false
         }
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
     }
 }
 
@@ -141,14 +176,15 @@ data class ParkingResponse(val _embedded: EmbeddedParkingData,
     }
 }
 
+data class ParkingViewModel(val name : String, val photos: List<String>)
+
 data class ParkingPurchaseOptions(val amenities: List<Amenity>)
 
 data class Amenity(val name: String, val enabled: Boolean)
-data class EmbeddedParkingData(@SerializedName("pw:location") val parkingLocation: ParkingLocation,
-                               val photos: List<ParkingPhoto>)
+data class EmbeddedParkingData(@SerializedName("pw:location") val parkingLocation: ParkingLocation)
 data class ParkingPhoto(val sizes: Map<String, PhotoDetail>)
 data class PhotoDetail(@SerializedName("URL") val url: String, val width: String, val height: String)
-data class ParkingLocation(val name: String, val entrances: List<ParkingEntrance>)
+data class ParkingLocation(val name: String, val entrances: List<ParkingEntrance>, val photos: List<ParkingPhoto>)
 data class ParkingEntrance(private val coordinates: List<Double>) {
     fun latLng() : LatLng {
         return LatLng(coordinates[0], coordinates[1])
