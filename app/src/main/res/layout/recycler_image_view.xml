@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout>
+    <data class="com.metromile.hackathon.RecyclerImageViewBinding">
+        <variable name="imageUrl"
+            type="String"/>
+    </data>
+
+    <ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_margin="4dp"
+        imageSrc="@{imageUrl}"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"/>
+</layout>
